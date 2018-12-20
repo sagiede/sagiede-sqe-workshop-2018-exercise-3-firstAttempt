@@ -2,8 +2,10 @@ import * as esprima from 'esprima';
 import * as escodegen from 'escodegen';
 import * as js2flowchart from 'js2flowchart';
 
+let colorMap = {};
+
 function createFlowChart(codeToParse, userParams) {
-    let colorMap = {};
+    colorMap = {};
     parseCode(codeToParse, userParams, colorMap);
     const flowTree = js2flowchart.convertCodeToFlowTree(codeToParse);
     const svgRender = js2flowchart.createSVGRender();
@@ -16,6 +18,7 @@ function createFlowChart(codeToParse, userParams) {
                 fillColor: '#008000'
             });
     }
+    console.log(colorMap);
     return (shapesTreeEditor.print({debug: true}));
 }
 
@@ -23,6 +26,7 @@ function parseCode(codeToParse, userParams, colorMap) {
     initTraverseHandler();
     let funcInput = esprima.parseScript(codeToParse);
     const jsParams = eval('[' + userParams + ']');
+    console.log(funcInput);
     programTraverse(funcInput, colorMap, 'P-', jsParams);
 }
 
@@ -119,8 +123,13 @@ const assignmentExpTraverse = (ast, env, colorMap, branch) => {
         pref = '(';
         post = ')';
     }
+    let assignName;
+    if(ast.left.type == 'MemberExpression')
+        assignName = nameToCapital(ast.left.object.name).charAt(0);
+    else
+        assignName = nameToCapital(ast.left.name).charAt(0);
     extendsEnv(ast.left, pref + escodegen.generate(substitute(env, ast.right)) + post, env);
-    addToColorMap(genCode, ast.left.name.toUpperCase() + branch, colorMap);
+    addToColorMap(genCode, assignName + branch, colorMap);
 };
 
 const whileExpTraverse = (ast, env, colorMap, branch, paramsEnv) => {
@@ -128,9 +137,10 @@ const whileExpTraverse = (ast, env, colorMap, branch, paramsEnv) => {
     env = Object.assign({}, env);
     ast.test = substitute(env, ast.test);
     const itTestTrue = checkTest(ast.test, paramsEnv);
-    addToColorMap('(' + genCode + ')', '(' + branch, colorMap);
+    const whileName = nameToCapital(genCode).charAt(0);
+    addToColorMap(genCode, whileName + branch, colorMap);
     if (itTestTrue)
-        expTraverse(ast.body, env, colorMap, '(' + branch, paramsEnv);
+        expTraverse(ast.body, env, colorMap, whileName + branch, paramsEnv);
 };
 
 const ifExpTraverse = (ast, env, colorMap, branch, paramsEnv) => {
@@ -181,7 +191,8 @@ const nameToCapital = (expName) => {
     let upperName = expName.toUpperCase();
     if (upperName.charAt(upperName.length - 1) == ';')
         upperName = upperName.substring(0, upperName.length - 1);
-    return upperName.replace(/ /g, '');
+    const upperResult =  upperName.replace(/ |\n/g, '');
+    return upperResult.replace(/'/g, '"');
 };
 
 
@@ -196,4 +207,4 @@ const initTraverseHandler = () => {
     traverseHandler['BlockStatement'] = blockTraverse;
 };
 
-export {createFlowChart};
+export {createFlowChart,colorMap};

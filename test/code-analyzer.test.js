@@ -1,76 +1,172 @@
 import assert from 'assert';
-import {parseCode, getDataFromCode, expTraverse} from '../src/js/code-analyzer';
+import * as codeAnalyzer from '../src/js/code-analyzer';
 
 describe('general Test', () => {
-    const userInput = '11,[100,101,true]';
-    let funcInput = 'function foo(x,y){\n' +
-        '    let a = [x,x+1,x+2];\n' +
-        '    let b;\n' +
-        '    b = a[1]-a[0];\n' +
-        '    let c = 12;\n' +
-        '    if(a[b] < c){\n' +
-        '      b = 0;\n' +
-        '      return y[b];\n' +
+    const userInput = '1,2,[0,3,0]';
+    let funcInput = '    let cc = 2 + 1;\n' +
+        'function foo(x, y, z){\n' +
+        '    let a = x + 1;\n' +
+        '    let b = a + y;\n' +
+        '    let c = 0;\n' +
+        '    \n' +
+        '    if ((b < z[1])) {\n' +
+        '        c = c + 5;\n' +
+        '    } else if (b < z[x] * 2) {\n' +
+        'd = c + x + 5;\n' +
+        'let d = a + y;\n' +
+        '       \n' +
+        '    } else {\n' +
+        '        c = c + z + 5;\n' +
         '    }\n' +
-        '    else{\n' +
-        '       while(y[0] < 99){\n' +
-        '         x = x +1;\n' +
-        '         return b + 1;\n' +
-        '       }\n' +
-        '       while(y[0] < 101){\n' +
-        '         c = c +1;\n' +
-        '         return a[0];\n' +
-        '       }\n' +
-        '       b = 1;\n' +
-        '      return y[b];\n' +
-        '    }\n' +
+        '    \n' +
+        '    return c;\n' +
         '}';
-    const funcResult = '"<br>function foo(x,y)  {<br>  if <span style=\\"background-color:red;\\">([x,x+1,x+2][([x,x+1,x+2][1] - [x,x+1,x+2][0])] < 12)</span><br>    {<br>    return y[0];<br>    }<br>  else<br>    {<br>    while <span style=\\"background-color:red;\\">(y[0] < 99)</span><br>      {<br>      x = x + 1<br>      return ([x,x+1,x+2][1] - [x,x+1,x+2][0]) + 1;<br>      }<br><br>    while <span style=\\"background-color:green;\\">(y[0] < 101)</span><br>      {<br>      return [x,x+1,x+2][0];<br>      }<br><br>    return y[1];<br>    }<br><br>  }<br>"';
+    let expecColorMap = {};
+    expecColorMap['NODE-ID:|(B<Z[1])|(FP-'] = true;
+    expecColorMap['NODE-ID:|(B<Z[X]*2)|((FP-'] = true;
+    expecColorMap['NODE-ID:|D=C+X+5|D((FP-'] = true;
+    expecColorMap['NODE-ID:|FUNCTIONFOO(X,Y,Z)|FP-'] = true;
+    expecColorMap['NODE-ID:|LETA=X+1|LFP-'] = true;
+    expecColorMap['NODE-ID:|LETB=A+Y|LFP-'] = true;
+    expecColorMap['NODE-ID:|LETC=0|LFP-'] = true;
+    expecColorMap['NODE-ID:|LETCC=2+1|LP-'] = true;
+    expecColorMap['NODE-ID:|LETD=A+Y|L((FP-'] = true;
+    expecColorMap['NODE-ID:|RETURNC|RFP-'] = true;
     it('func1', () => {
-        assert.deepEqual(JSON.stringify(parseCode(funcInput, userInput)), funcResult);
+        codeAnalyzer.createFlowChart(funcInput, userInput);
+        assert.deepEqual(codeAnalyzer.colorMap, expecColorMap);
+    });
+    let funcInput2 = '    let cc = 2 + 1;\n' +
+        'function foo(x, y, z){\n' +
+        '    let a = x + 1;\n' +
+        '    let b = a + y;\n' +
+        '    let c = 0;\n' +
+        '    \n' +
+        '    if ((b < z[1])) {\n' +
+        '        c = c + 5;\n' +
+        '    } else if (b < z[x+1] * 2) {\n' +
+        'd = c + x + 5;\n' +
+        'let d = a + y;\n' +
+        '       \n' +
+        '    } else {\n' +
+        '        c = c + z + 5;\n' +
+        '    }\n' +
+        '    \n' +
+        '    return c;\n' +
+        '}';
+    let expecColorMap2 = {};
+    expecColorMap2['NODE-ID:|(B<Z[1])|(FP-'] = true;
+    expecColorMap2['NODE-ID:|(B<Z[X+1]*2)|((FP-'] = true;
+    expecColorMap2['NODE-ID:|FUNCTIONFOO(X,Y,Z)|FP-'] = true;
+    expecColorMap2['NODE-ID:|LETA=X+1|LFP-'] = true;
+    expecColorMap2['NODE-ID:|LETB=A+Y|LFP-'] = true;
+    expecColorMap2['NODE-ID:|LETC=0|LFP-'] = true;
+    expecColorMap2['NODE-ID:|LETCC=2+1|LP-'] = true;
+    expecColorMap2['NODE-ID:|RETURNC|RFP-'] = true;
+    expecColorMap2['NODE-ID:|C=C+Z+5|C((FP-'] = true;
+
+    it('func1', () => {
+        codeAnalyzer.createFlowChart(funcInput2, userInput);
+        assert.deepEqual(codeAnalyzer.colorMap, expecColorMap2);
+    });
+
+    const userInput3 = '1,2';
+    let funcInput3 = 'function foo(x, var1){\n' +
+        '  let counter = x + 1;\n' +
+        '  while ((counter + 1)  < 10){\n' +
+        '    if ( var1 == 8){\n' +
+        '        return true;\n' +
+        '    }\n' +
+        '     else {\n' +
+        '        var1 = var1 +1;\n' +
+        '     }\n' +
+        '  }\n' +
+        '}';
+    let expecColorMap3 = {};
+    expecColorMap3['NODE-ID:|(VAR1==8)|(CFP-'] = true;
+    expecColorMap3['NODE-ID:|COUNTER+1<10|CFP-'] = true;
+    expecColorMap3['NODE-ID:|FUNCTIONFOO(X,VAR1)|FP-'] = true;
+    expecColorMap3['NODE-ID:|LETCOUNTER=X+1|LFP-'] = true;
+    expecColorMap3['NODE-ID:|VAR1=VAR1+1|V(CFP-'] = true;
+    it('func1', () => {
+        codeAnalyzer.createFlowChart(funcInput3, userInput3);
+        assert.deepEqual(codeAnalyzer.colorMap, expecColorMap3);
     });
 });
 
-describe('simple only function Tests', () => {
-    const userInput1 = 'true';
+describe('simple unary and member tests', () => {
+    const userInput1 = '20';
     const funcInput1 = 'function foo(x){\n' +
+        '    let a = [x,x+1];\n' +
+        '    a[0] = 1;\n' +
+        '    if(x > 1){\n' +
+        '       return a[0];\n' +
+        '    }\n' +
+        '}';
+    let expecColorMap1 = {};
+    expecColorMap1['NODE-ID:|(X>1)|(FP-'] = true;
+    expecColorMap1['NODE-ID:|A[0]=1|AFP-'] = true;
+    expecColorMap1['NODE-ID:|FUNCTIONFOO(X)|FP-'] = true;
+    expecColorMap1['NODE-ID:|LETA=[X,X+1]|LFP-'] = true;
+    expecColorMap1['NODE-ID:|RETURNA[0]|R(FP-'] = true;
+    it('func1', () => {
+        codeAnalyzer.createFlowChart(funcInput1, userInput1);
+        assert.deepEqual(codeAnalyzer.colorMap, expecColorMap1);
+    });
+
+    const userInput2 = 'true';
+    const funcInput2 = 'function foo(x){\n' +
         '    let a = true;\n' +
         '    let b = !a;\n' +
         '    let c = a & b;\n' +
         '    return c;\n' +
         '}';
-    const funcResult1 ='"<br>function foo(x)  {<br>  return (true&!true);<br>  }<br>"';
-    it('func2', () => {
-        assert.deepEqual(JSON.stringify(parseCode(funcInput1, userInput1)), funcResult1);
+    let expecColorMap2 = {};
+    expecColorMap2['NODE-ID:|FUNCTIONFOO(X)|FP-'] = true;
+    expecColorMap2['NODE-ID:|LETA=TRUE|LFP-'] = true;
+    expecColorMap2['NODE-ID:|LETB=!A|LFP-'] = true;
+    expecColorMap2['NODE-ID:|LETC=A&B|LFP-'] = true;
+    expecColorMap2['NODE-ID:|RETURNC|RFP-'] = true;
+    it('func1', () => {
+        codeAnalyzer.createFlowChart(funcInput2, userInput2);
+        assert.deepEqual(codeAnalyzer.colorMap, expecColorMap2);
     });
 
-    const userInput2 = '20';
-    const funcInput2 = 'function foo(x){\n' +
-        '    let a = [x,x+1];\n' +
-        '    a[0] = 1;\n' +
-        '    if(x > 1){\n' +
-        '       return a[0];\n' +
-        '    }\n' +
-        '}';
-    const funcResult2 ='"<br>function foo(x)  {<br>  if <span style=\\"background-color:green;\\">(x > 1)</span><br>    {<br>    return 1;<br>    }<br><br>  }<br>"';
-    it('func3', () => {
-        assert.deepEqual(JSON.stringify(parseCode(funcInput2, userInput2)), funcResult2);
+    const userInput3 = '';
+    const funcInput3 = 'function foo(){\n' +
+        '    return true;' +
+    '}';
+    let expecColorMap3 = {};
+    expecColorMap3['NODE-ID:|FUNCTIONFOO()|FP-'] = true;
+    expecColorMap3['NODE-ID:|RETURNTRUE|RFP-'] = true;
+    it('func1', () => {
+        codeAnalyzer.createFlowChart(funcInput3, userInput3);
+        assert.deepEqual(codeAnalyzer.colorMap, expecColorMap3);
     });
 
-    const userInput3 = '20';
-    const funcInput3 = 'function foo(x){\n' +
-        '    let a = [x,x+1];\n' +
-        '    a[0] = 1;\n' +
-        '    if(x > 1){\n' +
-        '       return a[0];\n' +
-        '    }\n' +
+    const userInput4 = '0,[1,2,3]';
+    const funcInput4 = 'function foo(x,y){\n' +
+        '    let a;' +
+        '    a = y[x];' +
+        '    y[x] = -1; ' +
+        '    if (a == y[x])' +
+        '       return "hey true";' +
+        '    else' +
+        '       return "hey false";' +
         '}';
-    const funcResult3 ='"<br>function foo(x)  {<br>  if <span style=\\"background-color:green;\\">(x > 1)</span><br>    {<br>    return 1;<br>    }<br><br>  }<br>"';
-    it('func3', () => {
-        assert.deepEqual(JSON.stringify(parseCode(funcInput3, userInput3)), funcResult3);
+    let expecColorMap4 = {};
+    expecColorMap4['NODE-ID:|(A==Y[X])|(FP-'] =  true;
+    expecColorMap4['NODE-ID:|A=Y[X]|AFP-'] = true;
+    expecColorMap4['NODE-ID:|FUNCTIONFOO(X,Y)|FP-'] = true;
+    expecColorMap4['NODE-ID:|LETA|LFP-'] = true;
+    expecColorMap4['NODE-ID:|RETURN"HEYFALSE"|R(FP-'] = true;
+    expecColorMap4['NODE-ID:|Y[X]=-1|YFP-'] = true;
+    it('func1', () => {
+        codeAnalyzer.createFlowChart(funcInput4, userInput4);
+        assert.deepEqual(codeAnalyzer.colorMap, expecColorMap4);
     });
 });
-
+/*
 
 describe('tests with outside vars and arrays', () => {
     const userInput1 = '0';
@@ -152,3 +248,4 @@ describe('tests with outside vars and arrays', () => {
         assert.deepEqual(JSON.stringify(parseCode(funcInput6, userInput6)), funcResult6);
     });
 });
+*/
