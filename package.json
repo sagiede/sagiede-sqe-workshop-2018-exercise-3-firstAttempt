@@ -11,7 +11,7 @@
         "coverage": "cross-env NODE_ENV=coverage nyc --reporter=json-summary npm run test",
         "lint": "eslint -f json -o ./lint/eslint-report.json src"
     },
-    "nyc": {
+    "nyc": { 
         "include": [
             "src/**/*.js"
         ],
