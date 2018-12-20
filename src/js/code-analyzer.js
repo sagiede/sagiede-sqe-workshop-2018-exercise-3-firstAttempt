@@ -1,35 +1,69 @@
 import * as esprima from 'esprima';
 import * as escodegen from 'escodegen';
+import * as js2flowchart from 'js2flowchart';
 
-const parseCode = (codeToParse, userParams) => {
+const createFlowChart = (codeToParse, userParams) => {
+    let colorMap = {};
+    const evalTree = parseCode(codeToParse, userParams, colorMap);
+    console.log('~~~~~~~~~~~~~~~~evalTree~~~~~~~~~~~~~');
+    console.log(evalTree);
+    console.log(colorMap);
+
+    const flowTree = js2flowchart.convertCodeToFlowTree(codeToParse);
+    // console.log('~~~~~~~~~~~~~~~~flowTree~~~~~~~~~~~~~');
+    // console.log(flowTree);
+
+    // console.log('~~~~~~~~~~~~~~~~svgRender~~~~~~~~~~~~~');
+    const svgRender = js2flowchart.createSVGRender();
+    svgRender.applyBlackAndWhiteTheme();
+    // console.log(svgRender);
+
+    // console.log('~~~~~~~~~~~~~~~~shapesTree~~~~~~~~~~~~~');
+    const shapesTree = svgRender.buildShapesTree(flowTree);
+    // console.log(shapesTree);
+
+    // console.log('~~~~~~~~~~~~~~~~shapesTreeEditor~~~~~~~~~~~~~');
+    const shapesTreeEditor = js2flowchart.createShapesTreeEditor(shapesTree);
+    // console.log(shapesTreeEditor);
+    shapesTreeEditor.applyShapeStyles(
+        shape => shape.getNodePathId() === 'NODE-ID:|C=C+5|C(FP-', {
+            fillColor: '#008000'
+        });
+
+    // console.log('~~~~~~~~~~~~~~~~shapesTreeEditor.print~~~~~~~~~~~~~');
+    const output = (shapesTreeEditor.print({debug: true}));
+    // console.log(output);
+    return output;
+};
+
+
+const parseCode = (codeToParse, userParams, colorMap) => {
     initTraverseHandler();
-    inithtmlTraverseHandler();
     let funcInput = esprima.parseScript(codeToParse);
     const jsParams = eval('[' + userParams + ']');
-    let firstParsedTree = programTraverse(funcInput, jsParams);
-    return createHtmlTag(firstParsedTree, '');
+    let firstParsedTree = programTraverse(funcInput, colorMap, 'P-', jsParams);
+    return firstParsedTree;
+    // return createHtmlTag(firstParsedTree, '');
 };
 
 let traverseHandler = {};
-let htmlTraverseHandler = {};
 
-const expTraverse = (ast, env, paramsEnv) => {
+const expTraverse = (ast, env, colorMap, branch, paramsEnv) => {
     try {
-        return traverseHandler[ast.type](ast, env, paramsEnv);
+        return traverseHandler[ast.type](ast, env, colorMap, branch, paramsEnv);
     }
     catch (err) {
         return null;
     }
 };
-const programTraverse = (ast,jsParams) => {
+const programTraverse = (ast, colorMap, branch, jsParams) => {
     let env = {};
-    ast.body = ast.body.map((bi) => expTraverse(bi, env, jsParams)).filter((bi) => {
-        return (bi.type != 'ExpressionStatement') && (bi.type != 'VariableDeclaration');
-    });
+    ast.body = ast.body.map((bi) => expTraverse(bi, env, colorMap, branch, jsParams));
     return ast;
 };
 
-const functionTraverse = (ast,env, jsParams) => {
+const functionTraverse = (ast, env, colorMap, branch, jsParams) => {
+    let funcBranch = 'F' + branch;
     let paramsEnv = {};
     const params = ast.params.reduce((acc, p) => [...acc, p.name], []);
     params.map((p) => env[p] = p);
@@ -39,17 +73,12 @@ const functionTraverse = (ast,env, jsParams) => {
         else
             paramsEnv[params[i]] = jsParams[i].toString();
     }
-    ast.body = expTraverse(ast.body, env, paramsEnv);
+    ast.body = expTraverse(ast.body, env, colorMap, funcBranch, paramsEnv);
     return ast;
 };
 
-const blockTraverse = (ast, env, paramsEnv) => {
-    ast.body = ast.body.map((bi) => expTraverse(bi, env, paramsEnv)).filter((bi) => {
-        if (bi.type == 'ExpressionStatement') {
-            return (paramsEnv[bi.expression.left.name] != undefined);
-        }
-        return (bi.type != 'VariableDeclaration');
-    });
+const blockTraverse = (ast, env, colorMap, branch, paramsEnv) => {
+    ast.body = ast.body.map((bi) => expTraverse(bi, env, colorMap, branch, paramsEnv));
     return ast;
 };
 
@@ -83,7 +112,9 @@ const substituteMember = (env, exp) => {
     return exp;
 };
 
-const variableDeclTraverse = (ast, env) => {
+const variableDeclTraverse = (ast, env, colorMap, branch) => {
+    const genCode = escodegen.generate(ast);
+    const backUpAst = esprima.parseScript(genCode).body[0];
     const updateEnv = (varDecl) => {
         let val = varDecl.init;
         if (val != undefined) {
@@ -98,10 +129,15 @@ const variableDeclTraverse = (ast, env) => {
         else env[varDecl.id.name] = null;
     };
     ast.declarations.map(updateEnv);
-    return ast;
+    addToColorMap(genCode, 'L' + branch, colorMap);
+    return backUpAst;
 };
 
-const assignmentExpTraverse = (ast, env) => {
+const assignmentExpTraverse = (ast, env, colorMap, branch) => {
+    console.log('assingmentt');
+    console.log(branch);
+    const genCode = escodegen.generate(ast);
+    const backUpAst = esprima.parseScript(genCode).body[0];
     let pref = '';
     let post = '';
     if (ast.right.type == 'BinaryExpression') {
@@ -109,25 +145,37 @@ const assignmentExpTraverse = (ast, env) => {
         post = ')';
     }
     extendsEnv(ast.left, pref + escodegen.generate(substitute(env, ast.right)) + post, env);
-    return ast;
+    addToColorMap(genCode, ast.left.name + branch, colorMap);
+    return backUpAst;
 };
 
-const whileExpTraverse = (ast, env, paramsEnv) => {
+const whileExpTraverse = (ast, env, colorMap, branch, paramsEnv) => {
+    const genCode = escodegen.generate(ast.test);
+    const backUpTest = esprima.parseScript(genCode).body[0];
     env = Object.assign({}, env);
     ast.test = substitute(env, ast.test);
-    ast.body = expTraverse(ast.body, env, paramsEnv);
     ast['isTestTrue'] = checkTest(ast.test, paramsEnv);
+    addToColorMap(genCode, '(' + branch, colorMap);
+    if (ast['isTestTrue'])
+        ast.body = expTraverse(ast.body, env, colorMap, '(' + branch, paramsEnv);
+    ast.test = backUpTest;
     return ast;
 };
 
-const ifExpTraverse = (ast, env, paramsEnv) => {
+const ifExpTraverse = (ast, env, colorMap, branch, paramsEnv) => {
+    const genCode = escodegen.generate(ast.test);
+    const backUpTest = esprima.parseScript(genCode).body[0];
     let newEnv = Object.assign({}, env);
     ast.test = substitute(newEnv, ast.test);
-    const ifConseqRows = expTraverse(ast.consequent, Object.assign({}, newEnv), paramsEnv);
-    let ifAlterRows = expTraverse(ast.alternate, Object.assign({}, newEnv), paramsEnv);
-    ast.consequent = ifConseqRows;
-    ast.alternate = ifAlterRows;
     ast['isTestTrue'] = checkTest(ast.test, paramsEnv);
+    addToColorMap(genCode, '(' + branch, colorMap);
+    if (ast['isTestTrue']) {
+        expTraverse(ast.consequent, Object.assign({}, newEnv), colorMap, '(' + branch, paramsEnv);
+    }
+    else {
+        expTraverse(ast.alternate, Object.assign({}, newEnv), colorMap, '(' + branch, paramsEnv);
+    }
+    ast.test = backUpTest;
     return ast;
 };
 
@@ -138,14 +186,14 @@ const checkTest = (ast, paramsEnv) => {
     return eval(escodegen.generate(newAst));
 };
 
-const returnTraverse = (ast, env, paramsEnv) => {
-
-    ast.argument = substitute(env, ast.argument, paramsEnv);
+const returnTraverse = (ast, env, colorMap, branch) => {
+    const genCode = escodegen.generate(ast);
+    addToColorMap(genCode, 'R' + branch, colorMap);
     return ast;
 };
 
-const genExpTraverse = (ast, env, paramsEnv) => {
-    ast.expression = expTraverse(ast.expression, env, paramsEnv);
+const genExpTraverse = (ast, env, colorMap, branch, paramsEnv) => {
+    ast.expression = expTraverse(ast.expression, env, colorMap, branch, paramsEnv);
     return ast;
 };
 
@@ -156,6 +204,10 @@ const extendsEnv = (ast, rightSide, env) => {
     else {  //ast.type == 'MemberExpression'
         env[escodegen.generate(ast)] = rightSide;
     }
+};
+
+const addToColorMap = (name, branch, colorMap) => {
+    colorMap['NODE-ID:|' + name + '|' + branch] = true;
 };
 
 
@@ -170,81 +222,5 @@ const initTraverseHandler = () => {
     traverseHandler['BlockStatement'] = blockTraverse;
 };
 
-const createHtmlTag = (ast, indentation) => {
-    return htmlTraverseHandler[ast.type](ast, indentation);
-};
 
-
-const functionTraverseHtml = (ast, indentation) => {
-    const params = ast.params.reduce((acc, p) => [...acc, p.name], []);
-    let html = '<br>';
-    html += 'function ' + ast.id.name + '(';
-    params.map((p) => html += p + ',');
-    html = html.slice(0, html.length - 1);
-    html += ')';
-    return html + createHtmlTag(ast.body, indentation + '  ');
-};
-
-const programTraverseHtml = (ast, indentation) => {
-    let html = '';
-    ast.body.map((exp) => html += (createHtmlTag(exp, indentation)));
-    return html;
-};
-const blockTraverseHtml = (ast, indentation) => {
-    let html = indentation + '{<br>';
-    ast.body.map((exp) => html += (createHtmlTag(exp, indentation) + '<br>'));
-    html += indentation + '}<br>';
-    return html;
-};
-
-const ifExpTraverseHtml = (ast, indentation) => {
-    let html = indentation + 'if ';
-    let color;
-    if (ast.isTestTrue) color = 'green';
-    else color = 'red';
-    html += '<span style="background-color:' + color + ';">(' + escodegen.generate(ast.test) + ')</span>';
-    html += '<br>';
-    html += createHtmlTag(ast.consequent, indentation + '  ');
-    if (ast.alternate) {
-        html += indentation + 'else' + '<br>' + createHtmlTag(ast.alternate, indentation + '  ');
-    }
-    return html;
-};
-
-const whileExpTraverseHtml = (ast, indentation) => {
-    let html = indentation + 'while ';
-    let color;
-    if (ast.isTestTrue) color = 'green';
-    else color = 'red';
-    html += '<span style="background-color:' + color + ';">(' + escodegen.generate(ast.test) + ')</span>';
-    html += '<br>';
-    html += createHtmlTag(ast.body, indentation + '  ');
-    return html;
-};
-
-const returnTraverseHtml = (ast, indentation) => {
-    return indentation + escodegen.generate(ast);
-};
-
-const genExpTraverseHtml = (ast, indentation) => {
-    return createHtmlTag(ast.expression, indentation);
-};
-
-const assignmentExpTraverseHtml = (ast, indentation) => {
-    return indentation + escodegen.generate(ast);
-};
-
-
-const inithtmlTraverseHandler = () => {
-    htmlTraverseHandler['Program'] = programTraverseHtml;
-    htmlTraverseHandler['FunctionDeclaration'] = functionTraverseHtml;
-    htmlTraverseHandler['BlockStatement'] = blockTraverseHtml;
-    htmlTraverseHandler['WhileStatement'] = whileExpTraverseHtml;
-    htmlTraverseHandler['IfStatement'] = ifExpTraverseHtml;
-    htmlTraverseHandler['ReturnStatement'] = returnTraverseHtml;
-    htmlTraverseHandler['ExpressionStatement'] = genExpTraverseHtml;
-    htmlTraverseHandler['AssignmentExpression'] = assignmentExpTraverseHtml;
-};
-
-
-export {parseCode, expTraverse};
+export {createFlowChart, expTraverse};

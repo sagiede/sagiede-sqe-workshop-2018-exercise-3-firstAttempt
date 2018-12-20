@@ -1,13 +1,13 @@
 import $ from 'jquery';
-import {parseCode} from './code-analyzer';
+import {createFlowChart} from './code-analyzer';
 
 $(document).ready(function () {
     $('#codeSubmissionButton').click(() => {
         let codeToParse = $('#codePlaceholder').val();
         let userParams = $('#varsPlaceholder').val();
-        let parsedCode = parseCode(codeToParse,userParams);
+        let flowChart = createFlowChart(codeToParse,userParams);
         // $('#parsedCode').val(parsedCode);
-        $('#output').html(parsedCode);
+        $('#output').html(flowChart);
     });
 });
 
