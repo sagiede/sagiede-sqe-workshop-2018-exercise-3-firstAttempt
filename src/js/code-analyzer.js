@@ -18,7 +18,6 @@ function createFlowChart(codeToParse, userParams) {
                 fillColor: '#008000'
             });
     }
-    console.log(colorMap);
     return (shapesTreeEditor.print({debug: true}));
 }
 
@@ -26,7 +25,6 @@ function parseCode(codeToParse, userParams, colorMap) {
     initTraverseHandler();
     let funcInput = esprima.parseScript(codeToParse);
     const jsParams = eval('[' + userParams + ']');
-    console.log(funcInput);
     programTraverse(funcInput, colorMap, 'P-', jsParams);
 }
 

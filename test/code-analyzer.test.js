@@ -32,7 +32,7 @@ describe('general Test', () => {
     expecColorMap['NODE-ID:|LETCC=2+1|LP-'] = true;
     expecColorMap['NODE-ID:|LETD=A+Y|L((FP-'] = true;
     expecColorMap['NODE-ID:|RETURNC|RFP-'] = true;
-    it('func1', () => {
+    it('test1', () => {
         codeAnalyzer.createFlowChart(funcInput, userInput);
         assert.deepEqual(codeAnalyzer.colorMap, expecColorMap);
     });
@@ -65,7 +65,7 @@ describe('general Test', () => {
     expecColorMap2['NODE-ID:|RETURNC|RFP-'] = true;
     expecColorMap2['NODE-ID:|C=C+Z+5|C((FP-'] = true;
 
-    it('func1', () => {
+    it('test2', () => {
         codeAnalyzer.createFlowChart(funcInput2, userInput);
         assert.deepEqual(codeAnalyzer.colorMap, expecColorMap2);
     });
@@ -88,9 +88,30 @@ describe('general Test', () => {
     expecColorMap3['NODE-ID:|FUNCTIONFOO(X,VAR1)|FP-'] = true;
     expecColorMap3['NODE-ID:|LETCOUNTER=X+1|LFP-'] = true;
     expecColorMap3['NODE-ID:|VAR1=VAR1+1|V(CFP-'] = true;
-    it('func1', () => {
+    it('test3', () => {
         codeAnalyzer.createFlowChart(funcInput3, userInput3);
         assert.deepEqual(codeAnalyzer.colorMap, expecColorMap3);
+    });
+
+    const userInput4 = '1,2';
+    let funcInput4 = 'function foo(x, var1){\n' +
+        '  let counter = x + 1;\n' +
+        '  while ((counter + 1)  > 10){\n' +
+        '    if ( var1 == 8){\n' +
+        '        return true;\n' +
+        '    }\n' +
+        '     else {\n' +
+        '        var1 = var1 +1;\n' +
+        '     }\n' +
+        '  }\n' +
+        '}';
+    let expecColorMap4 = {};
+    expecColorMap4['NODE-ID:|COUNTER+1>10|CFP-'] = true;
+    expecColorMap4['NODE-ID:|FUNCTIONFOO(X,VAR1)|FP-'] = true;
+    expecColorMap4['NODE-ID:|LETCOUNTER=X+1|LFP-'] = true;
+    it('test4', () => {
+        codeAnalyzer.createFlowChart(funcInput4, userInput4);
+        assert.deepEqual(codeAnalyzer.colorMap, expecColorMap4);
     });
 });
 
@@ -109,7 +130,7 @@ describe('simple unary and member tests', () => {
     expecColorMap1['NODE-ID:|FUNCTIONFOO(X)|FP-'] = true;
     expecColorMap1['NODE-ID:|LETA=[X,X+1]|LFP-'] = true;
     expecColorMap1['NODE-ID:|RETURNA[0]|R(FP-'] = true;
-    it('func1', () => {
+    it('test1', () => {
         codeAnalyzer.createFlowChart(funcInput1, userInput1);
         assert.deepEqual(codeAnalyzer.colorMap, expecColorMap1);
     });
@@ -127,7 +148,7 @@ describe('simple unary and member tests', () => {
     expecColorMap2['NODE-ID:|LETB=!A|LFP-'] = true;
     expecColorMap2['NODE-ID:|LETC=A&B|LFP-'] = true;
     expecColorMap2['NODE-ID:|RETURNC|RFP-'] = true;
-    it('func1', () => {
+    it('test2', () => {
         codeAnalyzer.createFlowChart(funcInput2, userInput2);
         assert.deepEqual(codeAnalyzer.colorMap, expecColorMap2);
     });
@@ -139,7 +160,7 @@ describe('simple unary and member tests', () => {
     let expecColorMap3 = {};
     expecColorMap3['NODE-ID:|FUNCTIONFOO()|FP-'] = true;
     expecColorMap3['NODE-ID:|RETURNTRUE|RFP-'] = true;
-    it('func1', () => {
+    it('test3', () => {
         codeAnalyzer.createFlowChart(funcInput3, userInput3);
         assert.deepEqual(codeAnalyzer.colorMap, expecColorMap3);
     });
@@ -161,91 +182,36 @@ describe('simple unary and member tests', () => {
     expecColorMap4['NODE-ID:|LETA|LFP-'] = true;
     expecColorMap4['NODE-ID:|RETURN"HEYFALSE"|R(FP-'] = true;
     expecColorMap4['NODE-ID:|Y[X]=-1|YFP-'] = true;
-    it('func1', () => {
+    it('test4', () => {
         codeAnalyzer.createFlowChart(funcInput4, userInput4);
         assert.deepEqual(codeAnalyzer.colorMap, expecColorMap4);
     });
-});
-/*
 
-describe('tests with outside vars and arrays', () => {
-    const userInput1 = '0';
-    const funcInput1 = 'let d = -1;\n' +
-        'function foo(x){\n' +
-        '    let a = 1;\n' +
-        '    let b = a + 1;\n' +
-        '    let c = d;\n' +
-        '    if(d + x < 0)\n' +
-        '       return d;\n' +
+    const userInput5 = '[1],0';
+    const funcInput5 = 'function foo(x,a){\n' +
+        '    return x[a];' +
         '}';
-    const funcResult1 ='"<br>function foo(x)  {<br>  if <span style=\\"background-color:green;\\">(-1 + x < 0)</span><br>    return -1;<br>  }<br>"';
-    it('func1', () => {
-        assert.deepEqual(JSON.stringify(parseCode(funcInput1, userInput1)), funcResult1);
+    let expecColorMap5 = {};
+    expecColorMap5['NODE-ID:|FUNCTIONFOO(X,A)|FP-'] = true;
+    expecColorMap5['NODE-ID:|RETURNX[A]|RFP-'] = true;
+    it('test5', () => {
+        codeAnalyzer.createFlowChart(funcInput5, userInput5);
+        assert.deepEqual(codeAnalyzer.colorMap, expecColorMap5);
     });
 
-    const userInput2 = '0';
-    const funcInput2 = 'let d = 0;\n' +
-        'function foo(x){\n' +
-        '    let a = [1,2,3]\n' +
-        '    a[d] = 100;\n' +
-        '    return a[d];\n' +
+    const userInput6 = 'true';
+    const funcInput6 = 'function foo(x){\n' +
+        'if (x)\n' +
+        'return "HOLA";\n' +
+        'else\n' +
+        'return "BYE";\n' +
         '}';
-    const funcResult2 ='"<br>function foo(x)  {<br>  return 100;<br>  }<br>"';
-    it('func1', () => {
-        assert.deepEqual(JSON.stringify(parseCode(funcInput2, userInput2)), funcResult2);
-    });
-
-    const userInput3 = '0';
-    const funcInput3 = 'let d = 0;\n' +
-        'function foo(x){\n' +
-        '    let a = [1,2,3]\n' +
-        '    a[d] = 100;\n' +
-        '    return a[d+1];\n' +
-        '}';
-    const funcResult3 ='"<br>function foo(x)  {<br>  return [1,2,3][0 + 1];<br>  }<br>"';
-    it('func1', () => {
-        assert.deepEqual(JSON.stringify(parseCode(funcInput3, userInput3)), funcResult3);
-    });
-
-    const userInput4 = '2,2';
-    const funcInput4 = 'let a = 0;\n' +
-        'let b = 1;\n' +
-        'function foo(x,y){\n' +
-        '    a = b + x;\n' +
-        '    b = x * y * a;\n' +
-        '    return b;\n' +
-        '}';
-    const funcResult4 ='"<br>function foo(x,y)  {<br>  return (x * y * (1 + x));<br>  }<br>"';
-    it('func1', () => {
-        assert.deepEqual(JSON.stringify(parseCode(funcInput4, userInput4)), funcResult4);
-    });
-
-    const userInput5 = '2,2';
-    const funcInput5 = 'let a = 0;\n' +
-        'let b = 1;\n' +
-        'function foo(x,y){\n' +
-        '    a = b + x;\n' +
-        '    b = true;\n' +
-        '    return b;\n' +
-        '}';
-    const funcResult5 ='"<br>function foo(x,y)  {<br>  return true;<br>  }<br>"';
-    it('func1', () => {
-        assert.deepEqual(JSON.stringify(parseCode(funcInput5, userInput5)), funcResult5);
-    });
-
-    const userInput6 = '[1,2,3],1';
-    const funcInput6 = 'let a = 2;\n' +
-        'function foo(x,y){\n' +
-        '    let b = a;\n' +
-        '    while(b < x[0]){\n' +
-        '      b = b +1;\n' +
-        '      y = a + b + 10;\n' +
-        '    }\n' +
-        '    return b + 10;\n' +
-        '}';
-    const funcResult6 ='"<br>function foo(x,y)  {<br>  while <span style=\\"background-color:red;\\">(2 < x[0])</span><br>    {<br>    y = 2 + (2 + 1) + 10<br>    }<br><br>  return 2 + 10;<br>  }<br>"';
-    it('func1', () => {
-        assert.deepEqual(JSON.stringify(parseCode(funcInput6, userInput6)), funcResult6);
+    let expecColorMap6 = {};
+    expecColorMap6['NODE-ID:|(X)|(FP-'] = true;
+    expecColorMap6['NODE-ID:|FUNCTIONFOO(X)|FP-'] = true;
+    expecColorMap6['NODE-ID:|RETURN"HOLA"|R(FP-'] = true;
+    it('test6', () => {
+        codeAnalyzer.createFlowChart(funcInput6, userInput6);
+        assert.deepEqual(codeAnalyzer.colorMap, expecColorMap6);
     });
 });
-*/
