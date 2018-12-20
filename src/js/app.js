@@ -6,28 +6,7 @@ $(document).ready(function () {
         let codeToParse = $('#codePlaceholder').val();
         let userParams = $('#varsPlaceholder').val();
         let flowChart = createFlowChart(codeToParse,userParams);
-        // $('#parsedCode').val(parsedCode);
         $('#output').html(flowChart);
     });
 });
 
-
-
-/*const makeTable = (codeExpsTable) => {
-    let tableHeader = '<tr>\n' +
-        '        <th>Line</th>\n' +
-        '        <th>Type</th>\n' +
-        '        <th>Name</th>\n' +
-        '        <th>Condition</th>\n' +
-        '        <th>Value</th>\n' +
-        '    </tr>';
-    let htmlData = codeExpsTable.reduce( (acc,jsonExp) => acc +
-        '<tr>' +
-        '<td>' + '<span>' + jsonExp.line + '</span>' + '</td>' +
-        '<td>' + '<span>' + jsonExp.type + '</span>' + '</td>' +
-        '<td>' + '<span>' + jsonExp.name + '</span>' + '</td>' +
-        '<td>' + '<span>' + jsonExp.condition + '</span>' + '</td>' +
-        '<td>' + '<span>' + jsonExp.value + '</span>' + '</td>' +
-        '</tr>',tableHeader);
-    $('#expsTable').html(htmlData);
-};*/

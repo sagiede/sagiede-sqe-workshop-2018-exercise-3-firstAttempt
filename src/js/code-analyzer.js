@@ -2,66 +2,39 @@ import * as esprima from 'esprima';
 import * as escodegen from 'escodegen';
 import * as js2flowchart from 'js2flowchart';
 
-const createFlowChart = (codeToParse, userParams) => {
+function createFlowChart(codeToParse, userParams) {
     let colorMap = {};
-    const evalTree = parseCode(codeToParse, userParams, colorMap);
-    console.log('~~~~~~~~~~~~~~~~evalTree~~~~~~~~~~~~~');
-    console.log(evalTree);
-    console.log(colorMap);
-
+    parseCode(codeToParse, userParams, colorMap);
     const flowTree = js2flowchart.convertCodeToFlowTree(codeToParse);
-    // console.log('~~~~~~~~~~~~~~~~flowTree~~~~~~~~~~~~~');
-    // console.log(flowTree);
-
-    // console.log('~~~~~~~~~~~~~~~~svgRender~~~~~~~~~~~~~');
     const svgRender = js2flowchart.createSVGRender();
     svgRender.applyBlackAndWhiteTheme();
-    // console.log(svgRender);
-
-    // console.log('~~~~~~~~~~~~~~~~shapesTree~~~~~~~~~~~~~');
     const shapesTree = svgRender.buildShapesTree(flowTree);
-    // console.log(shapesTree);
-
-    // console.log('~~~~~~~~~~~~~~~~shapesTreeEditor~~~~~~~~~~~~~');
     const shapesTreeEditor = js2flowchart.createShapesTreeEditor(shapesTree);
-    // console.log(shapesTreeEditor);
-    for (var key in colorMap){
-        console.log(key);
+    for (const key in colorMap) {
         shapesTreeEditor.applyShapeStyles(
             shape => shape.getNodePathId() === key, {
                 fillColor: '#008000'
             });
     }
-    // console.log('~~~~~~~~~~~~~~~~shapesTreeEditor.print~~~~~~~~~~~~~');
-    const output = (shapesTreeEditor.print({debug: true}));
-    console.log(output);
-    return output;
-};
+    return (shapesTreeEditor.print({debug: true}));
+}
 
-
-const parseCode = (codeToParse, userParams, colorMap) => {
+function parseCode(codeToParse, userParams, colorMap) {
     initTraverseHandler();
     let funcInput = esprima.parseScript(codeToParse);
     const jsParams = eval('[' + userParams + ']');
-    let firstParsedTree = programTraverse(funcInput, colorMap, 'P-', jsParams);
-    return firstParsedTree;
-    // return createHtmlTag(firstParsedTree, '');
-};
+    programTraverse(funcInput, colorMap, 'P-', jsParams);
+}
 
 let traverseHandler = {};
 
-const expTraverse = (ast, env, colorMap, branch, paramsEnv) => {
-    try {
-        return traverseHandler[ast.type](ast, env, colorMap, branch, paramsEnv);
-    }
-    catch (err) {
-        return null;
-    }
-};
+function expTraverse(ast, env, colorMap, branch, paramsEnv) {
+    traverseHandler[ast.type](ast, env, colorMap, branch, paramsEnv);
+}
+
 const programTraverse = (ast, colorMap, branch, jsParams) => {
     let env = {};
-    ast.body = ast.body.map((bi) => expTraverse(bi, env, colorMap, branch, jsParams));
-    return ast;
+    ast.body.map((bi) => expTraverse(bi, env, colorMap, branch, jsParams));
 };
 
 const functionTraverse = (ast, env, colorMap, branch, jsParams) => {
@@ -75,13 +48,11 @@ const functionTraverse = (ast, env, colorMap, branch, jsParams) => {
         else
             paramsEnv[params[i]] = jsParams[i].toString();
     }
-    ast.body = expTraverse(ast.body, env, colorMap, funcBranch, paramsEnv);
-    return ast;
+    expTraverse(ast.body, env, colorMap, funcBranch, paramsEnv);
 };
 
 const blockTraverse = (ast, env, colorMap, branch, paramsEnv) => {
-    ast.body = ast.body.map((bi) => expTraverse(bi, env, colorMap, branch, paramsEnv));
-    return ast;
+    ast.body.map((bi) => expTraverse(bi, env, colorMap, branch, paramsEnv));
 };
 
 const substitute = (env, exp) => {
@@ -116,7 +87,6 @@ const substituteMember = (env, exp) => {
 
 const variableDeclTraverse = (ast, env, colorMap, branch) => {
     const genCode = escodegen.generate(ast);
-    const backUpAst = esprima.parseScript(genCode).body[0];
     const updateEnv = (varDecl) => {
         let val = varDecl.init;
         if (val != undefined) {
@@ -132,14 +102,10 @@ const variableDeclTraverse = (ast, env, colorMap, branch) => {
     };
     ast.declarations.map(updateEnv);
     addToColorMap(genCode, 'L' + branch, colorMap);
-    return backUpAst;
 };
 
 const assignmentExpTraverse = (ast, env, colorMap, branch) => {
-    console.log('assingmentt');
-    console.log(branch);
     const genCode = escodegen.generate(ast);
-    const backUpAst = esprima.parseScript(genCode).body[0];
     let pref = '';
     let post = '';
     if (ast.right.type == 'BinaryExpression') {
@@ -148,37 +114,30 @@ const assignmentExpTraverse = (ast, env, colorMap, branch) => {
     }
     extendsEnv(ast.left, pref + escodegen.generate(substitute(env, ast.right)) + post, env);
     addToColorMap(genCode, ast.left.name.toUpperCase() + branch, colorMap);
-    return backUpAst;
 };
 
 const whileExpTraverse = (ast, env, colorMap, branch, paramsEnv) => {
     const genCode = escodegen.generate(ast.test);
-    const backUpTest = esprima.parseScript(genCode).body[0];
     env = Object.assign({}, env);
     ast.test = substitute(env, ast.test);
-    ast['isTestTrue'] = checkTest(ast.test, paramsEnv);
+    const itTestTrue = checkTest(ast.test, paramsEnv);
     addToColorMap('(' + genCode + ')', '(' + branch, colorMap);
-    if (ast['isTestTrue'])
-        ast.body = expTraverse(ast.body, env, colorMap, '(' + branch, paramsEnv);
-    ast.test = backUpTest;
-    return ast;
+    if (itTestTrue)
+        expTraverse(ast.body, env, colorMap, '(' + branch, paramsEnv);
 };
 
 const ifExpTraverse = (ast, env, colorMap, branch, paramsEnv) => {
     const genCode = escodegen.generate(ast.test);
-    const backUpTest = esprima.parseScript(genCode).body[0];
     let newEnv = Object.assign({}, env);
     ast.test = substitute(newEnv, ast.test);
-    ast['isTestTrue'] = checkTest(ast.test, paramsEnv);
+    const itTestTrue = checkTest(ast.test, paramsEnv);
     addToColorMap('(' + genCode + ')', '(' + branch, colorMap);
-    if (ast['isTestTrue']) {
+    if (itTestTrue) {
         expTraverse(ast.consequent, Object.assign({}, newEnv), colorMap, '(' + branch, paramsEnv);
     }
     else {
         expTraverse(ast.alternate, Object.assign({}, newEnv), colorMap, '(' + branch, paramsEnv);
     }
-    ast.test = backUpTest;
-    return ast;
 };
 
 const checkTest = (ast, paramsEnv) => {
@@ -191,12 +150,10 @@ const checkTest = (ast, paramsEnv) => {
 const returnTraverse = (ast, env, colorMap, branch) => {
     const genCode = escodegen.generate(ast);
     addToColorMap(genCode, 'R' + branch, colorMap);
-    return ast;
 };
 
 const genExpTraverse = (ast, env, colorMap, branch, paramsEnv) => {
     ast.expression = expTraverse(ast.expression, env, colorMap, branch, paramsEnv);
-    return ast;
 };
 
 const extendsEnv = (ast, rightSide, env) => {
@@ -214,8 +171,8 @@ const addToColorMap = (name, branch, colorMap) => {
 
 const nameToCapital = (expName) => {
     let upperName = expName.toUpperCase();
-    if(upperName.charAt(upperName.length-1) == ';')
-        upperName = upperName.substring(0,upperName.length-1);
+    if (upperName.charAt(upperName.length - 1) == ';')
+        upperName = upperName.substring(0, upperName.length - 1);
     return upperName.replace(/ /g, '');
 };
 
@@ -231,5 +188,4 @@ const initTraverseHandler = () => {
     traverseHandler['BlockStatement'] = blockTraverse;
 };
 
-
-export {createFlowChart, expTraverse};
+export {createFlowChart};
