@@ -25,14 +25,16 @@ const createFlowChart = (codeToParse, userParams) => {
     // console.log('~~~~~~~~~~~~~~~~shapesTreeEditor~~~~~~~~~~~~~');
     const shapesTreeEditor = js2flowchart.createShapesTreeEditor(shapesTree);
     // console.log(shapesTreeEditor);
-    shapesTreeEditor.applyShapeStyles(
-        shape => shape.getNodePathId() === 'NODE-ID:|C=C+5|C(FP-', {
-            fillColor: '#008000'
-        });
-
+    for (var key in colorMap){
+        console.log(key);
+        shapesTreeEditor.applyShapeStyles(
+            shape => shape.getNodePathId() === key, {
+                fillColor: '#008000'
+            });
+    }
     // console.log('~~~~~~~~~~~~~~~~shapesTreeEditor.print~~~~~~~~~~~~~');
     const output = (shapesTreeEditor.print({debug: true}));
-    // console.log(output);
+    console.log(output);
     return output;
 };
 
@@ -145,7 +147,7 @@ const assignmentExpTraverse = (ast, env, colorMap, branch) => {
         post = ')';
     }
     extendsEnv(ast.left, pref + escodegen.generate(substitute(env, ast.right)) + post, env);
-    addToColorMap(genCode, ast.left.name + branch, colorMap);
+    addToColorMap(genCode, ast.left.name.toUpperCase() + branch, colorMap);
     return backUpAst;
 };
 
@@ -155,7 +157,7 @@ const whileExpTraverse = (ast, env, colorMap, branch, paramsEnv) => {
     env = Object.assign({}, env);
     ast.test = substitute(env, ast.test);
     ast['isTestTrue'] = checkTest(ast.test, paramsEnv);
-    addToColorMap(genCode, '(' + branch, colorMap);
+    addToColorMap('(' + genCode + ')', '(' + branch, colorMap);
     if (ast['isTestTrue'])
         ast.body = expTraverse(ast.body, env, colorMap, '(' + branch, paramsEnv);
     ast.test = backUpTest;
@@ -168,7 +170,7 @@ const ifExpTraverse = (ast, env, colorMap, branch, paramsEnv) => {
     let newEnv = Object.assign({}, env);
     ast.test = substitute(newEnv, ast.test);
     ast['isTestTrue'] = checkTest(ast.test, paramsEnv);
-    addToColorMap(genCode, '(' + branch, colorMap);
+    addToColorMap('(' + genCode + ')', '(' + branch, colorMap);
     if (ast['isTestTrue']) {
         expTraverse(ast.consequent, Object.assign({}, newEnv), colorMap, '(' + branch, paramsEnv);
     }
@@ -207,7 +209,14 @@ const extendsEnv = (ast, rightSide, env) => {
 };
 
 const addToColorMap = (name, branch, colorMap) => {
-    colorMap['NODE-ID:|' + name + '|' + branch] = true;
+    colorMap['NODE-ID:|' + nameToCapital(name) + '|' + branch] = true;
+};
+
+const nameToCapital = (expName) => {
+    let upperName = expName.toUpperCase();
+    if(upperName.charAt(upperName.length-1) == ';')
+        upperName = upperName.substring(0,upperName.length-1);
+    return upperName.replace(/ /g, '');
 };
 
 
