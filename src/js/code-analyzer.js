@@ -38,17 +38,24 @@ const programTraverse = (ast, colorMap, branch, jsParams) => {
 };
 
 const functionTraverse = (ast, env, colorMap, branch, jsParams) => {
-    let funcBranch = 'F' + branch;
+    let funParams = '(';
     let paramsEnv = {};
     const params = ast.params.reduce((acc, p) => [...acc, p.name], []);
-    params.map((p) => env[p] = p);
+    params.map((p) => {
+        funParams += p + ',';
+        return env[p] = p;
+    });
     for (let i = 0; i < jsParams.length; i++) {
         if (jsParams[i].length)
             paramsEnv[params[i]] = '[' + jsParams[i].toString() + ']';
         else
             paramsEnv[params[i]] = jsParams[i].toString();
     }
-    expTraverse(ast.body, env, colorMap, funcBranch, paramsEnv);
+    if(ast.params.length > 0){
+        funParams = funParams.substring(0,funParams.length-1);
+    }
+    addToColorMap('FUNCTION' + ast.id.name+funParams + ')', 'F' + branch, colorMap);
+    expTraverse(ast.body, env, colorMap, 'F' + branch, paramsEnv);
 };
 
 const blockTraverse = (ast, env, colorMap, branch, paramsEnv) => {
@@ -168,6 +175,7 @@ const extendsEnv = (ast, rightSide, env) => {
 const addToColorMap = (name, branch, colorMap) => {
     colorMap['NODE-ID:|' + nameToCapital(name) + '|' + branch] = true;
 };
+
 
 const nameToCapital = (expName) => {
     let upperName = expName.toUpperCase();
